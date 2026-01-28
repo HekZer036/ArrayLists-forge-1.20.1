@@ -1,27 +1,28 @@
 defaultvalue: new ArrayList<>()
 scopes:
   local:
-    init: ArrayList<Object> ${var.getName()} = ${var.getType().getDefaultValue(generator.getWorkspace())};
+    # safe static default, no generator references
+    init: ArrayList<Object> ${var.getName()} = new ArrayList<>();
     get: ${name}
     set: ${name}.addAll(${opt.removeParentheses(value)});
   global_session:
-    init: public static ArrayList<Object> ${var.getName()} = ${var.getValue()};
+    init: public static ArrayList<Object> ${var.getName()} = new ArrayList<>();
     get: ${JavaModName}Variables.${name}
     set: ${JavaModName}Variables.${name}.addAll(${opt.removeParentheses(value)});
   global_world:
-    init: public ArrayList<Object> ${var.getName()} = ${var.getValue()};
+    init: public ArrayList<Object> ${var.getName()} = new ArrayList<>();
     read: |
       ${var.getName()}.clear();
-      
+
       ListTag ${var.getName()}_list = nbt.getList("${var.getName()}", Tag.TAG_COMPOUND);
       for (Tag tag : ${var.getName()}_list) {
         CompoundTag entry = (CompoundTag) tag;
         String type = entry.getString("Type");
-      
+
         Object value = switch(type) {
-          case "BlockState" -> NbtUtils.readBlockState(lookupProvider.lookupOrThrow(Registries.BLOCK), entry.getCompound("Value"));
+          case "BlockState" -> NbtUtils.readBlockState(Registries.BLOCK, entry.getCompound("Value"));
           case "Direction" -> Direction.from3DDataValue(entry.getInt("Value"));
-          case "ItemStack" -> ItemStack.parseOptional(lookupProvider, entry.getCompound("Value"));
+          case "ItemStack" -> ItemStack.of(entry.getCompound("Value"));
           case "Boolean" -> entry.getBoolean("Value");
           case "Double" -> entry.getDouble("Value");
           case "String" -> entry.getString("Value");
@@ -34,7 +35,7 @@ scopes:
           case "JsonArray" -> com.google.gson.JsonParser.parseString(entry.getString("Value")).getAsJsonArray();
           default -> entry.getString("Value");
         };
-      
+
         ${var.getName()}.add(value);
       }
     write: |
@@ -42,11 +43,11 @@ scopes:
       for(int i = 0; i < ${var.getName()}.size(); i++) {
         CompoundTag entry = new CompoundTag();
         entry.putString("Type", ${var.getName()}.get(i).getClass().getSimpleName());
-      
+
         switch (${var.getName()}.get(i)) {
           case BlockState state -> entry.put("Value", NbtUtils.writeBlockState(state));
           case Direction direction -> entry.putInt("Value", direction.get3DDataValue());
-          case ItemStack itemstack -> entry.put("Value", itemstack.saveOptional(lookupProvider));
+          case ItemStack itemstack -> entry.put("Value", itemstack.save(new CompoundTag()));
           case Boolean bool -> entry.putBoolean("Value", bool);
           case Double doub -> entry.putDouble("Value", doub);
           case String str -> entry.putString("Value", str);
@@ -62,29 +63,29 @@ scopes:
           case com.google.gson.JsonArray jsArr -> entry.putString("Value", jsArr.toString());
           default -> entry.putString("Value", String.valueOf(${var.getName()}.get(i)));
         }
-      
+
         ${var.getName()}_list.add(entry);
       }
-      
+
       nbt.put("${var.getName()}", ${var.getName()}_list);
     get: ${JavaModName}Variables.WorldVariables.get(world).${name}
     set: |
       ${JavaModName}Variables.WorldVariables.get(world).${name}.addAll(${opt.removeParentheses(value)});
       ${JavaModName}Variables.WorldVariables.get(world).syncData(world);
   global_map:
-    init: public ArrayList<Object> ${var.getName()} = ${var.getValue()};
+    init: public ArrayList<Object> ${var.getName()} = new ArrayList<>();
     read: |
       ${var.getName()}.clear();
-      
+
       ListTag ${var.getName()}_list = nbt.getList("${var.getName()}", Tag.TAG_COMPOUND);
       for (Tag tag : ${var.getName()}_list) {
         CompoundTag entry = (CompoundTag) tag;
         String type = entry.getString("Type");
-      
+
         Object value = switch(type) {
-          case "BlockState" -> NbtUtils.readBlockState(lookupProvider.lookupOrThrow(Registries.BLOCK), entry.getCompound("Value"));
+          case "BlockState" -> NbtUtils.readBlockState(BuiltInRegistries.BLOCK.asLookup(), entry.getCompound("Value"));
           case "Direction" -> Direction.from3DDataValue(entry.getInt("Value"));
-          case "ItemStack" -> ItemStack.parseOptional(lookupProvider, entry.getCompound("Value"));
+          case "ItemStack" -> ItemStack.of(entry.getCompound("Value"));
           case "Boolean" -> entry.getBoolean("Value");
           case "Double" -> entry.getDouble("Value");
           case "String" -> entry.getString("Value");
@@ -97,7 +98,7 @@ scopes:
           case "JsonArray" -> com.google.gson.JsonParser.parseString(entry.getString("Value")).getAsJsonArray();
           default -> entry.getString("Value");
         };
-      
+
         ${var.getName()}.add(value);
       }
     write: |
@@ -105,11 +106,11 @@ scopes:
       for(int i = 0; i < ${var.getName()}.size(); i++) {
         CompoundTag entry = new CompoundTag();
         entry.putString("Type", ${var.getName()}.get(i).getClass().getSimpleName());
-      
+
         switch (${var.getName()}.get(i)) {
           case BlockState state -> entry.put("Value", NbtUtils.writeBlockState(state));
           case Direction direction -> entry.putInt("Value", direction.get3DDataValue());
-          case ItemStack itemstack -> entry.put("Value", itemstack.saveOptional(lookupProvider));
+          case ItemStack itemstack -> entry.put("Value", itemstack.save(new CompoundTag()));
           case Boolean bool -> entry.putBoolean("Value", bool);
           case Double doub -> entry.putDouble("Value", doub);
           case String str -> entry.putString("Value", str);
@@ -125,10 +126,10 @@ scopes:
           case com.google.gson.JsonArray jsArr -> entry.putString("Value", jsArr.toString());
           default -> entry.putString("Value", String.valueOf(${var.getName()}.get(i)));
         }
-      
+
         ${var.getName()}_list.add(entry);
       }
-      
+
       nbt.put("${var.getName()}", ${var.getName()}_list);
     get: ${JavaModName}Variables.MapVariables.get(world).${name}
     set: |
